@@ -51,12 +51,13 @@ END
 
 - Python
 - LangGraph
-- Gemini 2.5 Flash-Lite
+- Gemini 2.5 Flash
 - Gemini Embeddings
 - Gemini Google Search grounding
 - LangChain InMemoryVectorStore
 - Streamlit
 - Optional TXT/Markdown client documents for RAG
+- Interactive Jupyter Notebook (`MarketingFlow_Demo.ipynb`) for Google Colab / Classroom demos
 
 No Ollama is required.
 
@@ -76,7 +77,7 @@ Edit `.env`:
 
 ```env
 GOOGLE_API_KEY=your_real_key
-GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-2.5-flash
 GEMINI_EMBEDDING_MODEL=models/gemini-embedding-001
 ```
 
