@@ -1,17 +1,16 @@
-import os
-from dotenv import load_dotenv
 import streamlit as st
 
+from marketingflow.config import get_settings
 from marketingflow.graph import graph
 
-load_dotenv(override=True)
+settings = get_settings()
 
 st.set_page_config(page_title="MarketingFlow AI", page_icon="🚀", layout="wide")
 
 st.title("🚀 MarketingFlow AI")
 st.caption("Multi-Agent AI Marketing Agency — LangGraph + Gemini + Google Search + RAG")
 
-if not os.getenv("GOOGLE_API_KEY"):
+if not settings.has_google_api_key:
     st.warning("Add GOOGLE_API_KEY to a .env file before generating a campaign.")
 
 with st.sidebar:
