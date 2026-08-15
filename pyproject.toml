@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marketingflow-ai"
+version = "0.1.0"
+description = "Multi-agent AI marketing agency built with LangGraph and Gemini"
+requires-python = ">=3.11"
+dependencies = [
+  "langgraph>=0.6.0",
+  "langchain-core>=0.3.0",
+  "langchain-google-genai>=4.0.0",
+  "python-dotenv>=1.0.1",
+  "pydantic>=2.8.0",
+  "streamlit>=1.37.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["marketingflow*"]

@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "marketingflow": "./marketingflow/graph.py:graph"
+  },
+  "env": ".env"
+}
