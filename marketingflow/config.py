@@ -19,10 +19,17 @@ class Settings:
     google_api_key: str | None
     gemini_model: str
     gemini_embedding_model: str
+    supabase_url: str | None
+    supabase_publishable_key: str | None
+    app_url: str
 
     @property
     def has_google_api_key(self) -> bool:
         return bool(self.google_api_key)
+
+    @property
+    def has_supabase(self) -> bool:
+        return bool(self.supabase_url and self.supabase_publishable_key)
 
 
 def get_settings(
@@ -52,4 +59,11 @@ def get_settings(
             "GEMINI_EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL
         ).strip()
         or DEFAULT_EMBEDDING_MODEL,
+        supabase_url=os.getenv("SUPABASE_URL", "").strip() or None,
+        supabase_publishable_key=os.getenv(
+            "SUPABASE_PUBLISHABLE_KEY", ""
+        ).strip()
+        or None,
+        app_url=os.getenv("APP_URL", "http://localhost:8501").strip()
+        or "http://localhost:8501",
     )

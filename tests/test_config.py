@@ -19,6 +19,7 @@ def test_settings_use_safe_defaults_without_env_file(monkeypatch):
     assert settings.gemini_model == DEFAULT_GEMINI_MODEL
     assert settings.gemini_embedding_model == DEFAULT_EMBEDDING_MODEL
     assert settings.has_google_api_key is False
+    assert settings.has_supabase is False
 
 
 def test_settings_read_explicit_environment(monkeypatch):
@@ -38,3 +39,13 @@ def test_required_api_key_has_stable_non_secret_error(monkeypatch):
 
     with pytest.raises(ConfigurationError, match="GOOGLE_API_KEY is missing"):
         get_settings(load_env_file=False, require_google_api_key=True)
+
+
+def test_supabase_requires_url_and_publishable_key(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://project.supabase.co")
+    monkeypatch.delenv("SUPABASE_PUBLISHABLE_KEY", raising=False)
+
+    assert get_settings(load_env_file=False).has_supabase is False
+
+    monkeypatch.setenv("SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
+    assert get_settings(load_env_file=False).has_supabase is True

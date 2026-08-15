@@ -4,7 +4,7 @@
 
 ## 1. تعريف سريع
 - **المشروع:** منصة تسويق متعددة الوكلاء مبنية على LangGraph وGemini وStreamlit.
-- **المرحلة الحالية:** أُغلقت Phase 1؛ التالي تأسيس Supabase وAuth spike في Phase 2.
+- **المرحلة الحالية:** كود Phase 2 جاهز محليًا؛ ينتظر Supabase project credentials لتطبيق migration واختبار Auth/RLS الحقيقي.
 - **SSOT:** `docs/superpowers/specs/2026-08-16-marketingflow-v3-upgrade-design.md`
 - **قاعدة الجلسات:** كل جلسة تبدأ من نقطة الاستئناف وتنتهي بتحديثها.
 
@@ -16,15 +16,16 @@
 | تصميم الترقية | ✅ | اعتمده المستخدم في 2026-08-16 |
 | Baseline واختبارات الحماية | ✅ | 18 اختبارًا offline ناجحًا وStreamlit health = ok |
 | Workflow contracts/correctness | ✅ | 29 اختبارًا؛ reviewer correction وfail-closed وrewrite واحد |
-| Supabase/Auth/Persistence | ⏳ | لم يبدأ التنفيذ |
+| Supabase foundation/Auth code | ✅ | migration + RLS + private Storage + Auth service/UI + scoped repository |
+| Supabase live integration | ⛔ | يحتاج Project URL وpublishable key وGoogle OIDC credentials |
 
 ### نقطة الاستئناف
 ```text
-► اكتب خطة تنفيذ تفصيلية للمرحلة 2: migrations وRLS وStorage policies وuser-scoped repository وSupabase Auth spike.
+► أضف Supabase/Google credentials محليًا، طبّق migration، ثم اختبر مستخدمين وGoogle/email/reset قبل Phase 3.
 ```
 
 ### على المستخدم
-- [ ] مراجعة checkpoint الخاص بـ Phase 1 واعتماد الانتقال إلى Phase 2.
+- [ ] توفير Supabase Project URL + publishable key وإعداد Google OIDC حسب `docs/supabase-setup.md`.
 
 ## 3. قرارات معتمدة
 1. المشروع الحالي في `/Users/imac/IMac/Mo/projects/Ai/marketingflow_ai` هو الـmaster الوحيد.
@@ -36,6 +37,8 @@
 7. Novelty يبدأ بفحص hash/vector؛ استدعاء LLM وإعادة الكتابة مرة واحدة فقط عند اكتشاف تشابه فعلي.
 8. واجهة Streamlit تعتمد العناصر الأصلية وcaching/fragments/forms، وتتجنب HTML/CSS والمكوّنات الخارجية إلا لضرورة مثبتة.
 9. SQLite ليس مسار إنتاج موازيًا؛ يؤجل ولا يضاف إلا إذا ظهر احتياج حقيقي لديمو محلي مستقل.
+10. اعتماد المستخدم يشمل الاستمرار التلقائي بين المراحل؛ checkpoints داخلية، والتوقف فقط عند blocker خارجي حقيقي.
+11. Google OIDC تديره Streamlit ثم يُبادل ID token داخل Supabase؛ هوية وملكية البيانات النهائية هي Supabase UUID.
 
 ## 4. سجل الدروس
 | # | التاريخ | الدرس/الخطأ | التصحيح المعتمد |
