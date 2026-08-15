@@ -4,7 +4,7 @@
 
 ## 1. تعريف سريع
 - **المشروع:** منصة تسويق متعددة الوكلاء مبنية على LangGraph وGemini وStreamlit.
-- **المرحلة الحالية:** أُغلقت Phase 0؛ التالي تصحيح عقود الـworkflow في Phase 1.
+- **المرحلة الحالية:** أُغلقت Phase 1؛ التالي تأسيس Supabase وAuth spike في Phase 2.
 - **SSOT:** `docs/superpowers/specs/2026-08-16-marketingflow-v3-upgrade-design.md`
 - **قاعدة الجلسات:** كل جلسة تبدأ من نقطة الاستئناف وتنتهي بتحديثها.
 
@@ -15,15 +15,16 @@
 | مراجعة V3 ZIP | ✅ | فُحصت كمرجع؛ ممنوع نسخها بالكامل فوق المشروع |
 | تصميم الترقية | ✅ | اعتمده المستخدم في 2026-08-16 |
 | Baseline واختبارات الحماية | ✅ | 18 اختبارًا offline ناجحًا وStreamlit health = ok |
+| Workflow contracts/correctness | ✅ | 29 اختبارًا؛ reviewer correction وfail-closed وrewrite واحد |
 | Supabase/Auth/Persistence | ⏳ | لم يبدأ التنفيذ |
 
 ### نقطة الاستئناف
 ```text
-► اكتب خطة تنفيذ تفصيلية للمرحلة 1: عقود المحتوى والمراجعة، تصحيح reviewer → finalizer، routing حتمي، ومسار rewrite محدود.
+► اكتب خطة تنفيذ تفصيلية للمرحلة 2: migrations وRLS وStorage policies وuser-scoped repository وSupabase Auth spike.
 ```
 
 ### على المستخدم
-- [ ] مراجعة checkpoint الخاص بـ Phase 0 واعتماد الانتقال إلى Phase 1.
+- [ ] مراجعة checkpoint الخاص بـ Phase 1 واعتماد الانتقال إلى Phase 2.
 
 ## 3. قرارات معتمدة
 1. المشروع الحالي في `/Users/imac/IMac/Mo/projects/Ai/marketingflow_ai` هو الـmaster الوحيد.
@@ -42,6 +43,7 @@
 | L1 | 2026-08-16 | الادعاء بأن ZIP منفصل مطبق محليًا غير كافٍ | الملفات الفعلية وGit هما الحكم |
 | L2 | 2026-08-16 | خلط Streamlit OIDC مع Supabase email يصنع هويتين | Supabase Auth موحد لكل طرق الدخول |
 | L3 | 2026-08-16 | service key يلغي قيمة RLS | publishable key + user JWT + سياسات RLS فعلية |
+| L4 | 2026-08-16 | كتابة التصحيح داخل ملاحظات reviewer لا تغيّر التسليم | approved/corrected content حقل مستقل وهو المصدر الوحيد للـfinalizer |
 
 ## 5. أفكار مؤجلة
 - Offline SQLite adapter إذا أصبح مطلوبًا فعلًا.

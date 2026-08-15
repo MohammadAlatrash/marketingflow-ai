@@ -85,8 +85,8 @@ if submitted:
                     "duration_days": duration_days,
                 }
             )
-        except Exception as exc:
-            st.error(f"Workflow failed: {exc}")
+        except Exception:
+            st.error("The workflow could not be completed. Please retry in a moment.")
             st.stop()
 
     st.success(f"Route: {result.get('route')} — {result.get('route_reason', '')}")

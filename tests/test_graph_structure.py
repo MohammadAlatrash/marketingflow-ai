@@ -16,6 +16,7 @@ def test_graph_imports_and_has_expected_nodes():
         "research",
         "strategy",
         "content_creator",
+        "novelty_gate",
         "reviewer",
         "knowledge_answer",
         "finalizer",

@@ -5,6 +5,7 @@ from .nodes import (
     content_creator_agent,
     finalizer_agent,
     knowledge_answer_agent,
+    novelty_gate_agent,
     research_agent,
     reviewer_agent,
     strategy_agent,
@@ -26,6 +27,10 @@ def after_knowledge(state: MarketingState) -> str:
     return "research"
 
 
+def after_novelty(state: MarketingState) -> str:
+    return "content_creator" if state.get("rewrite_requested") else "reviewer"
+
+
 builder = StateGraph(MarketingState)
 
 builder.add_node("supervisor", supervisor_agent)
@@ -33,6 +38,7 @@ builder.add_node("client_knowledge", client_knowledge_agent)
 builder.add_node("research", research_agent)
 builder.add_node("strategy", strategy_agent)
 builder.add_node("content_creator", content_creator_agent)
+builder.add_node("novelty_gate", novelty_gate_agent)
 builder.add_node("reviewer", reviewer_agent)
 builder.add_node("knowledge_answer", knowledge_answer_agent)
 builder.add_node("finalizer", finalizer_agent)
@@ -73,7 +79,15 @@ builder.add_conditional_edges(
         "content_creator": "content_creator",
     },
 )
-builder.add_edge("content_creator", "reviewer")
+builder.add_edge("content_creator", "novelty_gate")
+builder.add_conditional_edges(
+    "novelty_gate",
+    after_novelty,
+    {
+        "content_creator": "content_creator",
+        "reviewer": "reviewer",
+    },
+)
 builder.add_edge("reviewer", "finalizer")
 builder.add_edge("finalizer", END)
 

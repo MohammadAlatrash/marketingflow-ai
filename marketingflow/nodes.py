@@ -2,12 +2,27 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 
 from .llm import get_embeddings, get_llm
-from .schemas import RouteDecision
+from .schemas import CampaignBrief, ContentPlan, ReviewResult, RouteDecision
 from .state import MarketingState
 from .utils import client_to_text, message_to_text
 
+SUPPORTED_ROUTES = {
+    "knowledge_answer",
+    "content_only",
+    "strategy_only",
+    "full_campaign",
+}
+MAX_NOVELTY_REWRITES = 1
+
 
 def supervisor_agent(state: MarketingState) -> dict:
+    requested_route = state.get("requested_route")
+    if requested_route in SUPPORTED_ROUTES:
+        return {
+            "route": requested_route,
+            "route_reason": "Explicit task type selected by the user.",
+        }
+
     client = state.get("client", {})
     request = state.get("request", "")
     llm = get_llm(temperature=0)
@@ -30,11 +45,11 @@ User request:
     try:
         decision = router.invoke(prompt)
         return {"route": decision.route, "route_reason": decision.reason}
-    except Exception as exc:
+    except Exception:
         # A safe fallback keeps the workflow useful if structured routing fails.
         return {
             "route": "full_campaign",
-            "route_reason": f"Routing fallback used: {exc}",
+            "route_reason": "Automatic routing was unavailable; full campaign fallback used.",
         }
 
 
@@ -78,12 +93,13 @@ def client_knowledge_agent(state: MarketingState) -> dict:
         )
         context = "\n".join(f"- {doc.page_content}" for doc in results)
         return {"knowledge_context": context}
-    except Exception as exc:
+    except Exception:
         # Keep the app usable if the embedding quota/network is temporarily unavailable.
         fallback = "\n".join(f"- {doc.page_content}" for doc in documents[:6])
         return {
             "knowledge_context": (
-                f"[Semantic retrieval fallback: {exc}]\n" + fallback
+                "[Semantic retrieval unavailable; using verified client context.]\n"
+                + fallback
             )
         }
 
@@ -113,7 +129,7 @@ Task:
     try:
         response = model_with_search.invoke(prompt)
         return {"research": message_to_text(response)}
-    except Exception as exc:
+    except Exception:
         fallback_prompt = f"""
 Web search could not run in this request. Do NOT claim that your information is current.
 Using general marketing knowledge only, provide a concise fallback research brief and clearly label it as non-live research.
@@ -126,7 +142,7 @@ Task:
 """
         response = model.invoke(fallback_prompt)
         return {
-            "research": f"Live web search unavailable: {exc}\n\n{message_to_text(response)}"
+            "research": "Live web search unavailable.\n\n" + message_to_text(response)
         }
 
 
@@ -148,19 +164,14 @@ Retrieved client context:
 
 def strategy_agent(state: MarketingState) -> dict:
     llm = get_llm(temperature=0.4)
+    strategist = llm.with_structured_output(CampaignBrief)
     duration = state.get("duration_days", 7)
     prompt = f"""
-You are a senior marketing strategist. Build a practical strategy for the client and task below.
-Use the client's retrieved facts as the source of truth and use web research only as external market insight.
-
-Include:
-1. Brand/offer diagnosis
-2. Target audience and pain points
-3. 3-5 content pillars
-4. Positioning and key messages
-5. Recommended formats/platform approach
-6. Funnel/CTA approach
-7. A clear strategy for the next {duration} days
+You are a senior direct-response marketing strategist. Return a validated campaign brief.
+Use the client's retrieved facts as the source of truth and web research only as external insight.
+Cover audience awareness, pain/desire, offer, value proposition, big idea, reasons to believe,
+objections, funnel stage, channel, primary objective, CTA, and proof restrictions.
+The execution window is {duration} days. Never invent proof, guarantees, prices, or claims.
 
 Client context:
 {state.get('knowledge_context', '')}
@@ -171,15 +182,34 @@ Web research:
 User request:
 {state.get('request', '')}
 """
-    response = llm.invoke(prompt)
-    return {"strategy": message_to_text(response)}
+    response = strategist.invoke(prompt)
+    brief = (
+        response
+        if isinstance(response, CampaignBrief)
+        else CampaignBrief.model_validate(response)
+    )
+    return {
+        "strategy": brief.to_markdown(),
+        "strategy_brief": brief.model_dump(),
+    }
 
 
 def content_creator_agent(state: MarketingState) -> dict:
     llm = get_llm(temperature=0.65)
+    creator = llm.with_structured_output(ContentPlan)
     duration = state.get("duration_days", 7)
+    rewrite_instruction = ""
+    if state.get("rewrite_requested"):
+        matched_patterns = "\n".join(
+            f"- {match}" for match in state.get("novelty_matches", [])
+        )
+        rewrite_instruction = f"""
+This is a single allowed novelty rewrite. Change the angle, hook, structure, and CTA.
+Do not repeat these matched patterns:
+{matched_patterns or '- A previously detected similar pattern.'}
+"""
     prompt = f"""
-You are a marketing content creator. Produce ready-to-use content, not just ideas.
+You are a direct-response content creator. Return ready-to-use structured content, not ideas.
 Create exactly {duration} days of content unless the user explicitly asks for something smaller.
 
 For each day include:
@@ -194,6 +224,7 @@ For each day include:
 
 Stay faithful to client facts. Do not invent prices, guarantees, offers, locations, or product claims.
 Write in the language/tone requested by the client when available.
+{rewrite_instruction}
 
 Client context:
 {state.get('knowledge_context', '')}
@@ -201,26 +232,46 @@ Client context:
 Research:
 {state.get('research', 'Not requested.')}
 
-Strategy:
-{state.get('strategy', 'Not requested.')}
+Structured campaign brief:
+{state.get('strategy_brief', state.get('strategy', 'Not requested.'))}
 
 User request:
 {state.get('request', '')}
 """
-    response = llm.invoke(prompt)
-    return {"content_plan": message_to_text(response)}
+    response = creator.invoke(prompt)
+    plan = response if isinstance(response, ContentPlan) else ContentPlan.model_validate(response)
+    return {
+        "content_plan": plan.to_markdown(),
+        "content_items": [item.model_dump() for item in plan.items],
+        "rewrite_requested": False,
+    }
+
+
+def novelty_gate_agent(state: MarketingState) -> dict:
+    rewrite_count = state.get("rewrite_count", 0)
+    should_rewrite = bool(state.get("novelty_requires_rewrite"))
+    if should_rewrite and rewrite_count < MAX_NOVELTY_REWRITES:
+        return {
+            "rewrite_count": rewrite_count + 1,
+            "rewrite_requested": True,
+        }
+    return {
+        "rewrite_count": rewrite_count,
+        "rewrite_requested": False,
+    }
 
 
 def reviewer_agent(state: MarketingState) -> dict:
     llm = get_llm(temperature=0.1)
+    reviewer = llm.with_structured_output(ReviewResult)
     prompt = f"""
 You are the quality reviewer for a marketing agency.
 Review the draft against client facts and the requested task.
 Check factual consistency, tone, repetition, CTA quality, completeness, and whether unsupported claims were invented.
-Return:
-- PASS or NEEDS_CHANGES
-- Short quality notes
-- If changes are needed, provide a corrected final version. Otherwise repeat the approved draft unchanged under APPROVED_CONTENT.
+Return a structured decision. `approved_content` is mandatory:
+- For PASS, repeat the approved draft as structured content.
+- For NEEDS_CHANGES, put the fully corrected structured content there.
+Never approve unsupported claims. Never return an empty approved_content list.
 
 Client context:
 {state.get('knowledge_context', '')}
@@ -228,11 +279,33 @@ Client context:
 Task:
 {state.get('request', '')}
 
-Draft:
-{state.get('content_plan', '')}
+Structured draft:
+{state.get('content_items', [])}
 """
-    response = llm.invoke(prompt)
-    return {"review": message_to_text(response)}
+    try:
+        response = reviewer.invoke(prompt)
+        result = (
+            response
+            if isinstance(response, ReviewResult)
+            else ReviewResult.model_validate(response)
+        )
+    except Exception:
+        return {
+            "review": "Quality review could not be completed. Content was withheld.",
+            "review_status": "NEEDS_CHANGES",
+            "review_issues": ["Quality review did not return a valid decision."],
+            "approved_content_items": [],
+            "approved_content_plan": "",
+        }
+
+    approved_plan = ContentPlan(items=result.approved_content)
+    return {
+        "review": result.to_markdown(),
+        "review_status": result.status,
+        "review_issues": result.issues,
+        "approved_content_items": [item.model_dump() for item in result.approved_content],
+        "approved_content_plan": approved_plan.to_markdown(),
+    }
 
 
 def finalizer_agent(state: MarketingState) -> dict:
@@ -241,9 +314,11 @@ def finalizer_agent(state: MarketingState) -> dict:
         final_output = state.get("strategy", "")
     else:
         review = state.get("review", "")
-        content = state.get("content_plan", "")
+        content = state.get("approved_content_plan", "")
         strategy = state.get("strategy", "")
         research = state.get("research", "")
+        if not content:
+            content = "Content withheld pending a successful quality review."
         final_output = f"""# MarketingFlow AI Deliverable
 
 ## Strategy
