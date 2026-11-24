@@ -1,11 +1,12 @@
 # AGENTS.md — MarketingFlow AI
 > ملف الحالة الحي للمشروع. التحديث يكون بإضافات دقيقة، لا بإعادة بناء الملف.
-> آخر تحديث: 2026-08-16
+> آخر تحديث: 2026-08-17
 
 ## 1. تعريف سريع
 - **المشروع:** منصة تسويق متعددة الوكلاء مبنية على LangGraph وGemini وStreamlit.
-- **المرحلة الحالية:** كود Phase 2 جاهز محليًا؛ ينتظر Supabase project credentials لتطبيق migration واختبار Auth/RLS الحقيقي.
-- **SSOT:** `docs/superpowers/specs/2026-08-16-marketingflow-v3-upgrade-design.md`
+- **المرحلة الحالية:** تم اعتماد MarketingFlow كمنتج مستقل؛ مسار Supabase/Streamlit الإنتاجي مجمد حتى استخراج Reusable SaaS Core Kit وحسم تموضع المنتج مع سِدر.
+- **SSOT الحالي:** `docs/superpowers/specs/2026-08-17-independent-product-and-core-kit-decision.md`
+- **تصميم V3 السابق:** `docs/superpowers/specs/2026-08-16-marketingflow-v3-upgrade-design.md` مرجع لما تم بناؤه، وليس قرار النشر الحالي.
 - **قاعدة الجلسات:** كل جلسة تبدأ من نقطة الاستئناف وتنتهي بتحديثها.
 
 ## 2. حالة التنفيذ
@@ -17,15 +18,16 @@
 | Baseline واختبارات الحماية | ✅ | 18 اختبارًا offline ناجحًا وStreamlit health = ok |
 | Workflow contracts/correctness | ✅ | 29 اختبارًا؛ reviewer correction وfail-closed وrewrite واحد |
 | Supabase foundation/Auth code | ✅ | migration + RLS + private Storage + Auth service/UI + scoped repository |
-| Supabase live integration | ⛔ | يحتاج Project URL وpublishable key وGoogle OIDC credentials |
+| Supabase live integration | ⏸️ | مجمد بقرار 2026-08-17؛ لا credentials مطلوبة قبل حسم معمارية المنتج المستقل |
+| Product boundary/Core Kit decision | ✅ | MarketingFlow مستقل؛ لا يدمج داخل MVC الحالي ولا يبدأ من نسخة MVC المتضخمة |
 
 ### نقطة الاستئناف
 ```text
-► أضف Supabase/Google credentials محليًا، طبّق migration، ثم اختبر مستخدمين وGoogle/email/reset قبل Phase 3.
+► صمّم واستخرج Reusable SaaS Core Kit v1 بعد إغلاق تغييرات MVC الجارية، ثم احسم علاقة MarketingFlow بسِدر واكتب خطة المنتج المستقل.
 ```
 
 ### على المستخدم
-- [ ] توفير Supabase Project URL + publishable key وإعداد Google OIDC حسب `docs/supabase-setup.md`.
+- [ ] لا credentials مطلوبة الآن؛ تكامل Supabase مجمد لحين حسم بنية المنتج النهائية.
 
 ## 3. قرارات معتمدة
 1. المشروع الحالي في `/Users/imac/IMac/Mo/projects/Ai/marketingflow_ai` هو الـmaster الوحيد.
@@ -39,6 +41,11 @@
 9. SQLite ليس مسار إنتاج موازيًا؛ يؤجل ولا يضاف إلا إذا ظهر احتياج حقيقي لديمو محلي مستقل.
 10. اعتماد المستخدم يشمل الاستمرار التلقائي بين المراحل؛ checkpoints داخلية، والتوقف فقط عند blocker خارجي حقيقي.
 11. Google OIDC تديره Streamlit ثم يُبادل ID token داخل Supabase؛ هوية وملكية البيانات النهائية هي Supabase UUID.
+12. **قرار ناسخ بتاريخ 2026-08-17:** البنود 3-5 و8 و11 تصف prototype/مسار V3 السابق، وليست معمارية الإنتاج المعتمدة حاليًا؛ والبندان 1-2 يحميان كود Python الحالي كمرجع للمحرك لا باعتباره مستودع واجهة الإنتاج النهائية.
+13. MarketingFlow منتج مستقل كامل، لا موديول داخل MVC الحالي، ويملك repository ودومين وقاعدة بيانات ونشرًا مستقلًا.
+14. MVC الحالي لا يُنسخ بالكامل؛ يُستخرج منه Reusable SaaS Core Kit نظيف ومختبر، ثم يبدأ MarketingFlow من إصدار مثبت منه.
+15. الفصل يكون حسب المنتج ذي القيمة والجمهور ودورة التشغيل المستقلة، لا حسب كل Feature؛ Auth والعملاء والحملات والذاكرة والـanti-duplication تظل داخل MarketingFlow.
+16. كود LangGraph والـschemas والاختبارات والـprompts الحالية محفوظة كمرجع للمحرك، وStreamlit يبقى prototype حتى قرار الواجهة الإنتاجية.
 
 ## 4. سجل الدروس
 | # | التاريخ | الدرس/الخطأ | التصحيح المعتمد |
@@ -54,16 +61,22 @@
 - Background workers وqueues.
 - Welcome email مخصص لمستخدمي Google.
 - فرق متعددة وصلاحيات إدارية.
+- SSO مركزي بين المنتجات؛ لا يضاف قبل ظهور حاجة تشغيلية حقيقية.
+- تحويل القدرات الاختيارية في Core Kit إلى packages؛ لا يحدث قبل استعمالين مستقلين مثبتين.
 
 ## 6. مخاطر مفتوحة
 | الخطر | الحالة |
 |---|---|
-| OAuth callback/session داخل Streamlit يحتاج اختبارًا مبكرًا | 🟡 |
-| لا توجد بيانات Supabase تجريبية أو credentials حتى الآن | 🟡 |
+| OAuth callback/session داخل Streamlit | مؤجل؛ يخص prototype وليس مسار الإنتاج الحالي |
+| لا توجد بيانات Supabase تجريبية أو credentials | مؤجل؛ لا تُطلب أثناء تجميد هذا المسار |
 | Gemini 2.5 Flash في المشروع الحالي يقترب من الإيقاف | 🟡 |
 | V3 ZIP غير مختبرة وتشمل نقاط ضعف أمنية ومعمارية | 🟡 |
+| تداخل التموضع التجاري بين MarketingFlow وسِدر لم يُحسم بعد | 🟡 |
+| تعدد المستودعات قد يسبب drift في إصلاحات الأمان إن لم تُدار إصدارات الـCore | 🟡 |
 
 ## 7. بروتوكول التحديث
 - يُحدّث عند قفل كل جلسة أو اعتماد قرار/درس جديد.
 - لا تُحذف القرارات أو الدروس دون إذن صريح.
 - أي فكرة جانبية تُسجل في «أفكار مؤجلة» بدل توسيع المهمة الحالية.
+
+🔔 **"حدّث"/lessons trigger:** درس خاص بـ MarketingFlow AI ← قسم الدروس/القرارات في هذا الملف. درس عام قابل لإعادة الاستخدام في أي مشروع تاني (بغض النظر عن الستاك) ← يترقّى لـ `team-ai-skills/skills/core-engineering/references/improvement-log.md`.
